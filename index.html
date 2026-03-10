@@ -133,24 +133,28 @@ function mf(m){return 440*Math.pow(2,(m-69)/12);}
 
 var activeSounds=[];
 
-function stopOldSounds(){
+function stopAllSounds(){
   var now=actx?actx.currentTime:0;
   while(activeSounds.length>0){
     var old=activeSounds.shift();
     try{
       old.gain.gain.cancelScheduledValues(now);
       old.gain.gain.setValueAtTime(0,now);
-      old.nodes.forEach(function(n){try{n.stop(now);}catch(e){}});
+      old.nodes.forEach(function(n){try{n.stop(now);n.disconnect();}catch(e){}});
+      old.gains.forEach(function(g){try{g.disconnect();}catch(e){}});
       old.gain.disconnect();
     }catch(e){}
   }
 }
 
-function playNote(midi,dur){
+function playNote(midi,dur,at){
   if(!actx)createCtx();
   var ctx=actx;if(ctx.state==='suspended')ctx.resume();
-  dur=dur||0.5;var now=ctx.currentTime,freq=mf(midi);
-  stopOldSounds();
+  dur=dur||0.5;
+  var now=typeof at==='number'?at:ctx.currentTime;
+  if(now<ctx.currentTime)now=ctx.currentTime;
+  var freq=mf(midi);
+  stopAllSounds();
 
   var master=ctx.createGain();
   master.gain.setValueAtTime(0.001,now);
@@ -159,38 +163,40 @@ function playNote(midi,dur){
   master.gain.exponentialRampToValueAtTime(0.001,now+dur+0.3);
   master.connect(streamDest||ctx.destination);
 
-  var nodes=[];
+  var nodes=[],gains=[];
 
   var f1=ctx.createOscillator(),g1=ctx.createGain();
   f1.type='triangle';f1.frequency.value=freq;
   g1.gain.setValueAtTime(0.6,now);
   g1.gain.exponentialRampToValueAtTime(0.001,now+dur+0.2);
   f1.connect(g1);g1.connect(master);
-  f1.start(now);f1.stop(now+dur+0.5);nodes.push(f1);
+  f1.start(now);f1.stop(now+dur+0.5);nodes.push(f1);gains.push(g1);
 
   var f2=ctx.createOscillator(),g2=ctx.createGain();
   f2.type='sine';f2.frequency.value=freq*2;
   g2.gain.setValueAtTime(0.12,now);
   g2.gain.exponentialRampToValueAtTime(0.001,now+dur+0.15);
   f2.connect(g2);g2.connect(master);
-  f2.start(now);f2.stop(now+dur+0.3);nodes.push(f2);
+  f2.start(now);f2.stop(now+dur+0.3);nodes.push(f2);gains.push(g2);
 
   var f3=ctx.createOscillator(),g3=ctx.createGain();
   f3.type='sine';f3.frequency.value=freq*3;
   g3.gain.setValueAtTime(0.04,now);
   g3.gain.exponentialRampToValueAtTime(0.001,now+dur+0.1);
   f3.connect(g3);g3.connect(master);
-  f3.start(now);f3.stop(now+dur+0.2);nodes.push(f3);
+  f3.start(now);f3.stop(now+dur+0.2);nodes.push(f3);gains.push(g3);
 
-  var sound={gain:master,nodes:nodes,end:now+dur+0.5};
+  var sound={gain:master,nodes:nodes,gains:gains,end:now+dur+0.5};
   activeSounds.push(sound);
 
+  var cleanupMs=Math.max(50,(sound.end-ctx.currentTime)*1000+500);
   setTimeout(function(){
     var idx=activeSounds.indexOf(sound);
     if(idx>=0)activeSounds.splice(idx,1);
     try{master.disconnect();}catch(e){}
     nodes.forEach(function(n){try{n.disconnect();}catch(e){}});
-  },(dur+3)*1000);
+    gains.forEach(function(g){try{g.disconnect();}catch(e){}});
+  },cleanupMs);
 }
 
 // ============ DATA ============
@@ -230,6 +236,7 @@ function uk(){document.getElementById('kd').textContent=mn(S.root);}
 
 // ============ PLAYBACK ============
 function sl(ms){return new Promise(function(r){setTimeout(r,ms);});}
+function waitUntil(t){var ms=(t-actx.currentTime)*1000;return ms>0?sl(ms):Promise.resolve();}
 async function go(){
   if(S.playing){S.stop=true;return;}
   if(!actx)createCtx();
@@ -239,6 +246,7 @@ async function go(){
   var btn=document.getElementById('pb');btn.textContent='\u25A0';btn.classList.add('on');
   var ex=EX[S.ex],nd=60/S.bpm,sh=S.dir==='up'?1:-1;
   var rounds=1,sr=S.root;
+  var t0=actx.currentTime;
 
   for(var r=0;r<rounds;r++){
     if(S.stop)break;var root=sr+r*sh;
@@ -247,10 +255,12 @@ async function go(){
     for(var i=0;i<ex.iv.length;i++){
       if(S.stop)break;
       S.ni=i;rd(ex.iv.length);
-      playNote(root+ex.iv[i],nd*0.8);
-      await sl(nd*1000);
+      var noteTime=t0+i*nd;
+      playNote(root+ex.iv[i],nd*0.8,noteTime);
+      await waitUntil(t0+(i+1)*nd);
     }
-    if(!S.stop&&r<rounds-1){S.ni=-1;await sl(nd*400);}
+    t0+=ex.iv.length*nd;
+    if(!S.stop&&r<rounds-1){t0+=nd*0.4;await waitUntil(t0);}
   }
   S.playing=false;S.ni=-1;
   if(!S.autoTriggered){S.root=sr;}
