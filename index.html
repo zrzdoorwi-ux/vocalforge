@@ -65,6 +65,7 @@ header p{color:var(--dm);font-size:11px;margin-top:4px;letter-spacing:2px}
   <header>
     <h1>VocalForge</h1>
     <p>声乐练习</p>
+    <button id="reload" style="margin-top:8px;padding:4px 12px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--dm);font-size:10px;letter-spacing:1px;cursor:pointer">刷新</button>
   </header>
   <div class="kd"><div class="big" id="kd">C3</div><div class="sub">当前起始音</div></div>
   <div class="st">练习模式</div>
@@ -269,6 +270,7 @@ addTE('kup',function(){if(S.root<84){S.root++;uk();rc();playNote(S.root,.3);if(S
 document.getElementById('autoplay').addEventListener('change',function(e){S.autoPlay=e.target.checked;});
 document.getElementById('bs').addEventListener('input',function(e){S.bpm=+e.target.value;document.getElementById('bv').textContent=S.bpm;});
 addTE('pb',go);
+document.getElementById('reload').addEventListener('click',function(e){e.stopPropagation();location.reload(true);});
 uk();rc();
 </script>
 </body>
