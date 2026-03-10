@@ -135,7 +135,7 @@ var activeSounds=[];
 
 function stopOldSounds(){
   var now=actx?actx.currentTime:0;
-  while(activeSounds.length>1){
+  while(activeSounds.length>0){
     var old=activeSounds.shift();
     try{
       old.gain.gain.cancelScheduledValues(now);
