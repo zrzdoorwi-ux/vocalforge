@@ -265,8 +265,8 @@ function addTE(id,fn){
   el.addEventListener('click',function(e){if(e.detail!==0)fn();});
 }
 addTE('kd',function(){playNote(S.root,0.5);});
-addTE('kdn',function(){if(S.root>36){S.root--;uk();rc();if(S.autoPlay&&!S.playing){S.autoTriggered=true;go();}else{playNote(S.root,.3);}}});
-addTE('kup',function(){if(S.root<84){S.root++;uk();rc();if(S.autoPlay&&!S.playing){S.autoTriggered=true;go();}else{playNote(S.root,.3);}}});
+addTE('kdn',function(){if(S.root>36){S.root--;uk();rc();playNote(S.root,.3);if(S.autoPlay&&!S.playing){S.autoTriggered=true;go();}}});
+addTE('kup',function(){if(S.root<84){S.root++;uk();rc();playNote(S.root,.3);if(S.autoPlay&&!S.playing){S.autoTriggered=true;go();}}});
 document.getElementById('autoplay').addEventListener('change',function(e){S.autoPlay=e.target.checked;});
 document.getElementById('bs').addEventListener('input',function(e){S.bpm=+e.target.value;document.getElementById('bv').textContent=S.bpm;});
 addTE('pb',go);
