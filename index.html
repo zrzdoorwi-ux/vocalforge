@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>VocalForge 练声工具</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+:root{--bg:#0a0a0f;--sf:#12121a;--sf2:#1a1a26;--bd:#2a2a3a;--tx:#e8e8f0;--dm:#7a7a90;--ac:#f0c040;--gl:rgba(240,192,64,.15)}
+body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;min-height:100dvh;overflow-x:hidden}
+.app{max-width:860px;margin:0 auto;padding:16px 14px 60px}
+
+header{text-align:center;padding:12px 0 20px}
+header h1{font-size:24px;font-weight:700;background:linear-gradient(135deg,#f0c040,#ff9040);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+header p{color:var(--dm);font-size:12px;margin-top:2px}
+
+.kd{text-align:center;margin-bottom:12px}
+.kd .big{font-family:ui-monospace,monospace;font-size:42px;font-weight:500;color:var(--ac);text-shadow:0 0 25px var(--gl);cursor:pointer}
+.kd .sub{font-size:11px;color:var(--dm)}
+
+.row{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.cb{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--bd);background:var(--sf);color:var(--tx);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.tg{padding:5px 13px;border-radius:14px;border:1.5px solid var(--bd);background:var(--sf);color:var(--dm);font-size:12px;cursor:pointer;font-family:inherit}
+.tg.on{border-color:var(--ac);color:var(--ac);background:var(--gl)}
+.ck{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--dm)}
+.ck input{accent-color:var(--ac);width:15px;height:15px}
+
+.st{font-size:10px;color:var(--dm);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.gr{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:7px;margin-bottom:16px}
+.cd{background:var(--sf);border:1.5px solid var(--bd);border-radius:9px;padding:9px 10px;cursor:pointer}
+.cd.sel{border-color:var(--ac);background:var(--gl)}
+.cd .n{font-weight:600;font-size:13px}.cd .d{font-size:10px;color:var(--dm)}
+.cd .iv{font-family:ui-monospace,monospace;font-size:9px;color:var(--ac);margin-top:3px;opacity:.7}
+
+.sr{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dm)}
+.sr input[type=range]{accent-color:var(--ac);width:90px}
+.sr .v{font-family:ui-monospace,monospace;font-size:12px;color:var(--ac);min-width:50px}
+
+.pa{text-align:center;margin:14px 0}
+.pb{width:60px;height:60px;border-radius:50%;border:2px solid var(--ac);background:transparent;color:var(--ac);font-size:24px;cursor:pointer}
+.pb.on{background:var(--ac);color:var(--bg);animation:pu 1.5s infinite}
+@keyframes pu{0%,100%{box-shadow:0 0 0 0 rgba(240,192,64,.3)}50%{box-shadow:0 0 0 10px rgba(240,192,64,0)}}
+
+.dots{display:flex;justify-content:center;gap:4px;margin-top:8px;flex-wrap:wrap}
+.dt{width:6px;height:6px;border-radius:50%;background:var(--bd)}.dt.p{background:var(--dm)}.dt.c{background:var(--ac);transform:scale(1.5)}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>VocalForge</h1>
+    <p>声乐练习 · 自动升降调</p>
+  </header>
+  <div class="kd"><div class="big" id="kd">C3</div><div class="sub">当前起始音</div></div>
+  <div class="st">练习模式</div>
+  <div class="gr" id="el"></div>
+  <div class="row" style="justify-content:flex-start;gap:16px">
+    <div class="sr"><span>速度</span><input type="range" id="bs" min="40" max="200" value="100"><span class="v" id="bv">100</span></div>
+    <label class="ck"><input type="checkbox" id="cue" checked> 提示音</label>
+  </div>
+  <div class="pa">
+    <div class="row" style="margin-bottom:10px">
+      <button class="cb" id="kdn">▼</button>
+      <button class="pb" id="pb">▶</button>
+      <button class="cb" id="kup">▲</button>
+    </div>
+    <div class="dots" id="dots"></div>
+  </div>
+</div>
+
+<script>
+var actx=null;
+function createCtx(){if(actx)return actx;actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
+
+function ensureAudio(){
+  if(!actx)createCtx();
+  if(actx.state==='suspended')actx.resume();
+  var buf=actx.createBuffer(1,1,22050),src=actx.createBufferSource();
+  src.buffer=buf;src.connect(actx.destination);src.start(0);
+}
+
+document.addEventListener('touchend',function(){ensureAudio();},{once:true});
+document.addEventListener('click',function(){ensureAudio();},{once:true});
+
+// ============ SYNTH PIANO ============
+function mf(m){return 440*Math.pow(2,(m-69)/12);}
+
+var activeSounds=[];
+
+function stopOldSounds(){
+  var now=actx?actx.currentTime:0;
+  while(activeSounds.length>8){
+    var old=activeSounds.shift();
+    try{
+      old.gain.gain.cancelScheduledValues(now);
+      old.gain.gain.setValueAtTime(0,now);
+      old.nodes.forEach(function(n){try{n.stop(now);}catch(e){}try{n.disconnect();}catch(e){}});
+      old.gain.disconnect();
+    }catch(e){}
+  }
+}
+
+function playNote(midi,dur){
+  if(!actx)createCtx();
+  var ctx=actx;if(ctx.state==='suspended')ctx.resume();
+  dur=dur||0.5;var now=ctx.currentTime,freq=mf(midi);
+  stopOldSounds();
+
+  var master=ctx.createGain();
+  master.gain.setValueAtTime(0.001,now);
+  master.gain.linearRampToValueAtTime(0.6,now+0.002);
+  master.gain.exponentialRampToValueAtTime(0.35,now+0.05);
+  master.gain.exponentialRampToValueAtTime(0.001,now+dur+2.5);
+  master.connect(ctx.destination);
+
+  var nodes=[];
+
+  var f1=ctx.createOscillator(),g1=ctx.createGain();
+  f1.type='triangle';f1.frequency.value=freq;
+  g1.gain.setValueAtTime(0.6,now);
+  g1.gain.exponentialRampToValueAtTime(0.001,now+dur+2);
+  f1.connect(g1);g1.connect(master);
+  f1.start(now);f1.stop(now+dur+2.5);nodes.push(f1);
+
+  var f2=ctx.createOscillator(),g2=ctx.createGain();
+  f2.type='sine';f2.frequency.value=freq*2;
+  g2.gain.setValueAtTime(0.12,now);
+  g2.gain.exponentialRampToValueAtTime(0.001,now+dur+1);
+  f2.connect(g2);g2.connect(master);
+  f2.start(now);f2.stop(now+dur+1.5);nodes.push(f2);
+
+  var f3=ctx.createOscillator(),g3=ctx.createGain();
+  f3.type='sine';f3.frequency.value=freq*3;
+  g3.gain.setValueAtTime(0.04,now);
+  g3.gain.exponentialRampToValueAtTime(0.001,now+dur+0.5);
+  f3.connect(g3);g3.connect(master);
+  f3.start(now);f3.stop(now+dur+1);nodes.push(f3);
+
+  var nl=Math.floor(ctx.sampleRate*0.008),nb=ctx.createBuffer(1,nl,ctx.sampleRate),nd2=nb.getChannelData(0);
+  for(var i=0;i<nl;i++)nd2[i]=(Math.random()*2-1)*Math.exp(-i/(nl*0.08));
+  var ns=ctx.createBufferSource();ns.buffer=nb;
+  var nf=ctx.createBiquadFilter();nf.type='highpass';nf.frequency.value=freq*1.5;nf.Q.value=0.5;
+  var ng=ctx.createGain();ng.gain.setValueAtTime(0.15,now);ng.gain.exponentialRampToValueAtTime(0.001,now+0.008);
+  ns.connect(nf);nf.connect(ng);ng.connect(master);
+  ns.start(now);ns.stop(now+0.02);nodes.push(ns);
+
+  var sound={gain:master,nodes:nodes,end:now+dur+2.5};
+  activeSounds.push(sound);
+
+  setTimeout(function(){
+    var idx=activeSounds.indexOf(sound);
+    if(idx>=0)activeSounds.splice(idx,1);
+    try{master.disconnect();}catch(e){}
+    nodes.forEach(function(n){try{n.disconnect();}catch(e){}});
+  },(dur+3)*1000);
+}
+
+function playCueTick(){
+  if(!actx)return;var now=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();
+  o.type='sine';o.frequency.value=2400;
+  g.gain.setValueAtTime(0.06,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.025);
+  o.connect(g);g.connect(actx.destination);o.start(now);o.stop(now+0.035);
+}
+
+// ============ DATA ============
+var NT=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function mn(m){return NT[m%12]+(Math.floor(m/12)-1)}
+
+var EX=[
+  {name:'1-3-5-3-1',desc:'大三和弦上下',iv:[0,4,7,4,0]},
+  {name:'1-3-5-8-5-3-1',desc:'琶音上下行',iv:[0,4,7,12,7,4,0]},
+  {name:'1-3-5-8-8-8-8-5-3-1',desc:'琶音+高音延留',iv:[0,4,7,12,12,12,12,7,4,0]}
+];
+
+var S={root:48,ex:0,bpm:100,auto:false,dir:'up',oct:2,playing:false,ni:-1,stop:false,cue:true};
+
+// ============ RENDER ============
+function rc(){
+  var el=document.getElementById('el'),h='';
+  for(var i=0;i<EX.length;i++){
+    var e=EX[i],ivs=[];
+    for(var j=0;j<e.iv.length;j++)ivs.push(mn(S.root+e.iv[j]));
+    h+='<div class="cd'+(i===S.ex?' sel':'')+'" data-i="'+i+'"><div class="n">'+e.name+'</div><div class="d">'+e.desc+'</div><div class="iv">'+ivs.join('\u2192')+'</div></div>';
+  }
+  el.innerHTML=h;
+  el.querySelectorAll('.cd').forEach(function(card){
+    card.onclick=function(){S.ex=+this.dataset.i;rc();};
+  });
+}
+
+function rd(len){
+  var el=document.getElementById('dots');
+  if(len<=0){el.innerHTML='';return;}
+  var h='';for(var i=0;i<len;i++){var c='dt';if(i<S.ni)c+=' p';if(i===S.ni)c+=' c';h+='<div class="'+c+'"></div>';}
+  el.innerHTML=h;
+}
+function uk(){document.getElementById('kd').textContent=mn(S.root);}
+
+// ============ PLAYBACK ============
+function sl(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function go(){
+  if(S.playing){S.stop=true;return;}
+  S.stop=false;S.playing=true;
+  var btn=document.getElementById('pb');btn.textContent='\u25A0';btn.classList.add('on');
+  var ex=EX[S.ex],nd=60/S.bpm,sh=S.dir==='up'?1:-1;
+  var rounds=1,sr=S.root;
+
+  for(var r=0;r<rounds;r++){
+    if(S.stop)break;var root=sr+r*sh;
+    if(root<36||root>84)break;
+    S.root=root;uk();rc();
+    for(var i=0;i<ex.iv.length;i++){
+      if(S.stop)break;
+      S.ni=i;rd(ex.iv.length);
+      if(S.cue)playCueTick();
+      playNote(root+ex.iv[i],nd*0.8);
+      await sl(nd*1000);
+    }
+    if(!S.stop&&r<rounds-1){S.ni=-1;await sl(nd*400);}
+  }
+  S.playing=false;S.ni=-1;S.root=sr;uk();rc();rd(0);
+  btn.textContent='\u25B6';btn.classList.remove('on');
+}
+
+// ============ EVENTS ============
+function addTE(id,fn){
+  var el=document.getElementById(id),moved=false;
+  el.addEventListener('touchstart',function(){moved=false;},{passive:true});
+  el.addEventListener('touchmove',function(){moved=true;},{passive:true});
+  el.addEventListener('touchend',function(e){e.preventDefault();if(!moved)fn();},{passive:false});
+  el.addEventListener('click',function(e){if(e.detail!==0)fn();});
+}
+addTE('kd',function(){playNote(S.root,0.5);});
+addTE('kdn',function(){if(S.root>36){S.root--;uk();rc();playNote(S.root,.3);}});
+addTE('kup',function(){if(S.root<84){S.root++;uk();rc();playNote(S.root,.3);}});
+document.getElementById('cue').addEventListener('change',function(e){S.cue=e.target.checked;});
+document.getElementById('bs').addEventListener('input',function(e){S.bpm=+e.target.value;document.getElementById('bv').textContent=S.bpm;});
+addTE('pb',go);
+uk();rc();
+</script>
+</body>
+</html>
