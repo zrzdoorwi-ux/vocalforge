@@ -84,6 +84,12 @@ header p{color:var(--dm);font-size:11px;margin-top:4px;letter-spacing:2px}
 </div>
 
 <script>
+// Silent audio element to bypass iOS silent mode switch
+var silentAudio=document.createElement('audio');
+silentAudio.src='data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRwmHAAAAAAD/+1DEAAAHAAGf9AAAIisJs/80YAAAABBBQAP/E8IAAAADB+H4fygIAmD8Pg+D9+XB8H7+XB8HwfB8AEAQo8IAgCAIee/6gIAkBP/Lg/8QBBQEuD4ff/UdxAkyQEIAALlwfBB5cH3lCCfWIJRALg+/1HcF4fB//6jo7//0fw+/6gIAgHwfP/6j8f0YxIAABnOe0Aeqlt1HnK5lMpnIGAUBwHBRBcFwVDAMBkGQnEoX//7cQQ5M4WBAOJzuiKIgklz6nO56losiKJx6ckhHEYYQ4rC5DGCGGof+c53O9yEZ3vchGERBEQRF1////8hGf/IRhEd7kMYIYYjCmZ//////0M73uQjPe5CMEBCM73/8hGd7////6GYz/+1DEQwPAAAGkAAAAIAAANIAAAAT//6Gd7kIz/e5Cf///v////0MwhGd7////0M73IRn/oZ3uQn///+kIf0hGd7//6Gd/6Gf+hn//0M//+hnf/Qz//6GYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+silentAudio.loop=true;
+silentAudio.volume=0.01;
+
 var actx=null;
 function createCtx(){if(actx)return actx;actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
 
@@ -92,6 +98,8 @@ function ensureAudio(){
   if(actx.state==='suspended')actx.resume();
   var buf=actx.createBuffer(1,1,22050),src=actx.createBufferSource();
   src.buffer=buf;src.connect(actx.destination);src.start(0);
+  // Play silent audio to unlock iOS silent mode
+  silentAudio.play().catch(function(){});
 }
 
 document.addEventListener('touchend',function(){ensureAudio();},{once:true});
