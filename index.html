@@ -257,11 +257,11 @@ async function go(){
 
 // ============ EVENTS ============
 function addTE(id,fn){
-  var el=document.getElementById(id),moved=false;
+  var el=document.getElementById(id),moved=false,handled=false;
   el.addEventListener('touchstart',function(){moved=false;},{passive:true});
   el.addEventListener('touchmove',function(){moved=true;},{passive:true});
-  el.addEventListener('touchend',function(e){e.preventDefault();if(!moved)fn();},{passive:false});
-  el.addEventListener('click',function(e){if(e.detail!==0)fn();});
+  el.addEventListener('touchend',function(e){e.preventDefault();if(!moved){handled=true;fn();setTimeout(function(){handled=false;},400);}},{passive:false});
+  el.addEventListener('click',function(e){if(!handled&&e.detail!==0)fn();});
 }
 addTE('kd',function(){playNote(S.root,0.5);});
 addTE('kdn',function(){if(S.root>36){S.root--;uk();rc();playNote(S.root,.5);if(S.autoPlay&&!S.playing){S.autoTriggered=true;setTimeout(go,600);}}});
