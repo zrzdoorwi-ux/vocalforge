@@ -84,38 +84,46 @@ header p{color:var(--dm);font-size:11px;margin-top:4px;letter-spacing:2px}
 </div>
 
 <script>
-// Silent audio element to bypass iOS silent mode switch
-var silentAudio=document.createElement('audio');
-silentAudio.src='data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRwmHAAAAAAD/+1DEAAAHAAGf9AAAIisJs/80YAAAABBBQAP/E8IAAAADB+H4fygIAmD8Pg+D9+XB8H7+XB8HwfB8AEAQo8IAgCAIee/6gIAkBP/Lg/8QBBQEuD4ff/UdxAkyQEIAALlwfBB5cH3lCCfWIJRALg+/1HcF4fB//6jo7//0fw+/6gIAgHwfP/6j8f0YxIAABnOe0Aeqlt1HnK5lMpnIGAUBwHBRBcFwVDAMBkGQnEoX//7cQQ5M4WBAOJzuiKIgklz6nO56losiKJx6ckhHEYYQ4rC5DGCGGof+c53O9yEZ3vchGERBEQRF1////8hGf/IRhEd7kMYIYYjCmZ//////0M73uQjPe5CMEBCM73/8hGd7////6GYz/+1DEQwPAAAGkAAAAIAAANIAAAAT//6Gd7kIz/e5Cf///v////0MwhGd7////0M73IRn/oZ3uQn///+kIf0hGd7//6Gd/6Gf+hn//0M//+hnf/Qz//6GYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-silentAudio.loop=true;
-silentAudio.volume=0.01;
+// ============ iOS SILENT MODE BYPASS ============
+// Route Web Audio through a MediaStream -> <audio> element
+// iOS treats <audio>.srcObject playback as "media" category = ignores mute switch
+var actx=null,streamDest=null,mediaEl=null;
 
-var actx=null;
-function createCtx(){if(actx)return actx;actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
+function createCtx(){
+  if(actx)return actx;
+  actx=new(window.AudioContext||window.webkitAudioContext)();
+  // Create a MediaStream destination and wire it to an <audio> element
+  if(actx.createMediaStreamDestination){
+    streamDest=actx.createMediaStreamDestination();
+    mediaEl=document.createElement('audio');
+    mediaEl.srcObject=streamDest.stream;
+    mediaEl.setAttribute('playsinline','');
+  }
+  return actx;
+}
 
 function ensureAudio(){
   if(!actx)createCtx();
   if(actx.state==='suspended')actx.resume();
-  var buf=actx.createBuffer(1,1,22050),src=actx.createBufferSource();
-  src.buffer=buf;src.connect(actx.destination);src.start(0);
-  silentAudio.play().catch(function(){});
+  // Play the media element to activate "media playback" audio session
+  if(mediaEl)mediaEl.play().catch(function(){});
 }
 
-// Re-wake audio on EVERY touch/click, not just the first one
+// Re-wake audio on EVERY touch/click
 document.addEventListener('touchend',function(){ensureAudio();});
 document.addEventListener('click',function(){ensureAudio();});
 
-// Keep AudioContext alive: ping every 20s to prevent browser from suspending it
+// Keep alive every 20s
 setInterval(function(){
   if(actx&&actx.state==='suspended')actx.resume();
-  if(silentAudio.paused)silentAudio.play().catch(function(){});
+  if(mediaEl&&mediaEl.paused)mediaEl.play().catch(function(){});
 },20000);
 
-// Also re-wake when user comes back to the tab/app
+// Re-wake when coming back to tab
 document.addEventListener('visibilitychange',function(){
   if(!document.hidden){
     if(actx&&actx.state==='suspended')actx.resume();
-    if(silentAudio.paused)silentAudio.play().catch(function(){});
+    if(mediaEl&&mediaEl.paused)mediaEl.play().catch(function(){});
   }
 });
 
@@ -149,6 +157,7 @@ function playNote(midi,dur){
   master.gain.exponentialRampToValueAtTime(0.35,now+0.05);
   master.gain.exponentialRampToValueAtTime(0.001,now+dur+2.5);
   master.connect(ctx.destination);
+  if(streamDest)master.connect(streamDest);
 
   var nodes=[];
 
@@ -196,7 +205,7 @@ function playCueTick(){
   if(!actx)return;var now=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();
   o.type='sine';o.frequency.value=2400;
   g.gain.setValueAtTime(0.06,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.025);
-  o.connect(g);g.connect(actx.destination);o.start(now);o.stop(now+0.035);
+  o.connect(g);g.connect(actx.destination);if(streamDest)g.connect(streamDest);o.start(now);o.stop(now+0.035);
 }
 
 // ============ DATA ============
