@@ -231,6 +231,9 @@ function uk(){document.getElementById('kd').textContent=mn(S.root);}
 function sl(ms){return new Promise(function(r){setTimeout(r,ms);});}
 async function go(){
   if(S.playing){S.stop=true;return;}
+  if(!actx)createCtx();
+  if(actx.state==='suspended')await actx.resume();
+  if(mediaEl&&mediaEl.paused)await mediaEl.play().catch(function(){});
   S.stop=false;S.playing=true;
   var btn=document.getElementById('pb');btn.textContent='\u25A0';btn.classList.add('on');
   var ex=EX[S.ex],nd=60/S.bpm,sh=S.dir==='up'?1:-1;
