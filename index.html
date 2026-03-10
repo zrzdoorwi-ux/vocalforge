@@ -181,14 +181,6 @@ function playNote(midi,dur){
   f3.connect(g3);g3.connect(master);
   f3.start(now);f3.stop(now+dur+1);nodes.push(f3);
 
-  var nl=Math.floor(ctx.sampleRate*0.008),nb=ctx.createBuffer(1,nl,ctx.sampleRate),nd2=nb.getChannelData(0);
-  for(var i=0;i<nl;i++)nd2[i]=(Math.random()*2-1)*Math.exp(-i/(nl*0.08));
-  var ns=ctx.createBufferSource();ns.buffer=nb;
-  var nf=ctx.createBiquadFilter();nf.type='highpass';nf.frequency.value=freq*1.5;nf.Q.value=0.5;
-  var ng=ctx.createGain();ng.gain.setValueAtTime(0.15,now);ng.gain.exponentialRampToValueAtTime(0.001,now+0.008);
-  ns.connect(nf);nf.connect(ng);ng.connect(master);
-  ns.start(now);ns.stop(now+0.02);nodes.push(ns);
-
   var sound={gain:master,nodes:nodes,end:now+dur+2.5};
   activeSounds.push(sound);
 
