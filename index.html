@@ -244,8 +244,7 @@ async function go(){
     if(S.stop)break;var root=sr+r*sh;
     if(root<36||root>84)break;
     S.root=root;uk();rc();
-    var si=(S.autoTriggered&&ex.iv[0]===0)?1:0;
-    for(var i=si;i<ex.iv.length;i++){
+    for(var i=0;i<ex.iv.length;i++){
       if(S.stop)break;
       S.ni=i;rd(ex.iv.length);
       playNote(root+ex.iv[i],nd*0.8);
