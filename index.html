@@ -134,13 +134,14 @@ var activeSounds=[];
 
 function stopOldSounds(){
   var now=actx?actx.currentTime:0;
-  while(activeSounds.length>8){
+  while(activeSounds.length>1){
     var old=activeSounds.shift();
     try{
       old.gain.gain.cancelScheduledValues(now);
-      old.gain.gain.setValueAtTime(0,now);
-      old.nodes.forEach(function(n){try{n.stop(now);}catch(e){}try{n.disconnect();}catch(e){}});
-      old.gain.disconnect();
+      old.gain.gain.setValueAtTime(old.gain.gain.value,now);
+      old.gain.gain.exponentialRampToValueAtTime(0.001,now+0.05);
+      old.nodes.forEach(function(n){try{n.stop(now+0.06);}catch(e){}});
+      setTimeout(function(){try{old.gain.disconnect();}catch(e){}},100);
     }catch(e){}
   }
 }
@@ -155,7 +156,7 @@ function playNote(midi,dur){
   master.gain.setValueAtTime(0.001,now);
   master.gain.linearRampToValueAtTime(0.6,now+0.002);
   master.gain.exponentialRampToValueAtTime(0.35,now+0.05);
-  master.gain.exponentialRampToValueAtTime(0.001,now+dur+2.5);
+  master.gain.exponentialRampToValueAtTime(0.001,now+dur+0.3);
   master.connect(streamDest||ctx.destination);
 
   var nodes=[];
@@ -163,25 +164,25 @@ function playNote(midi,dur){
   var f1=ctx.createOscillator(),g1=ctx.createGain();
   f1.type='triangle';f1.frequency.value=freq;
   g1.gain.setValueAtTime(0.6,now);
-  g1.gain.exponentialRampToValueAtTime(0.001,now+dur+2);
+  g1.gain.exponentialRampToValueAtTime(0.001,now+dur+0.2);
   f1.connect(g1);g1.connect(master);
-  f1.start(now);f1.stop(now+dur+2.5);nodes.push(f1);
+  f1.start(now);f1.stop(now+dur+0.5);nodes.push(f1);
 
   var f2=ctx.createOscillator(),g2=ctx.createGain();
   f2.type='sine';f2.frequency.value=freq*2;
   g2.gain.setValueAtTime(0.12,now);
-  g2.gain.exponentialRampToValueAtTime(0.001,now+dur+1);
+  g2.gain.exponentialRampToValueAtTime(0.001,now+dur+0.15);
   f2.connect(g2);g2.connect(master);
-  f2.start(now);f2.stop(now+dur+1.5);nodes.push(f2);
+  f2.start(now);f2.stop(now+dur+0.3);nodes.push(f2);
 
   var f3=ctx.createOscillator(),g3=ctx.createGain();
   f3.type='sine';f3.frequency.value=freq*3;
   g3.gain.setValueAtTime(0.04,now);
-  g3.gain.exponentialRampToValueAtTime(0.001,now+dur+0.5);
+  g3.gain.exponentialRampToValueAtTime(0.001,now+dur+0.1);
   f3.connect(g3);g3.connect(master);
-  f3.start(now);f3.stop(now+dur+1);nodes.push(f3);
+  f3.start(now);f3.stop(now+dur+0.2);nodes.push(f3);
 
-  var sound={gain:master,nodes:nodes,end:now+dur+2.5};
+  var sound={gain:master,nodes:nodes,end:now+dur+0.5};
   activeSounds.push(sound);
 
   setTimeout(function(){
