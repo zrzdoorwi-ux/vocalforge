@@ -139,10 +139,9 @@ function stopOldSounds(){
     var old=activeSounds.shift();
     try{
       old.gain.gain.cancelScheduledValues(now);
-      old.gain.gain.setValueAtTime(old.gain.gain.value,now);
-      old.gain.gain.exponentialRampToValueAtTime(0.001,now+0.05);
-      old.nodes.forEach(function(n){try{n.stop(now+0.06);}catch(e){}});
-      setTimeout(function(){try{old.gain.disconnect();}catch(e){}},100);
+      old.gain.gain.setValueAtTime(0,now);
+      old.nodes.forEach(function(n){try{n.stop(now);}catch(e){}});
+      old.gain.disconnect();
     }catch(e){}
   }
 }
