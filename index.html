@@ -204,6 +204,7 @@ var EX=[
 ];
 
 var S={root:48,ex:0,bpm:100,auto:false,dir:'up',oct:2,playing:false,ni:-1,stop:false,autoPlay:true,autoTriggered:false};
+var autoTimer=null;
 
 // ============ RENDER ============
 function rc(){
@@ -268,8 +269,16 @@ function addTE(id,fn){
   el.addEventListener('click',function(e){if(!handled&&e.detail!==0)fn();});
 }
 addTE('kd',function(){playNote(S.root,0.5);});
-addTE('kdn',function(){if(S.root>36){S.root--;uk();rc();playNote(S.root,.5);if(S.autoPlay&&!S.playing){S.autoTriggered=true;setTimeout(go,600);}}});
-addTE('kup',function(){if(S.root<84){S.root++;uk();rc();playNote(S.root,.5);if(S.autoPlay&&!S.playing){S.autoTriggered=true;setTimeout(go,600);}}});
+function keyShift(delta){
+  var next=S.root+delta;
+  if(next<36||next>84)return;
+  if(autoTimer){clearTimeout(autoTimer);autoTimer=null;}
+  if(S.playing){S.stop=true;S.playing=false;var btn=document.getElementById('pb');btn.textContent='\u25B6';btn.classList.remove('on');S.ni=-1;rd(0);}
+  S.root=next;uk();rc();playNote(S.root,.5);
+  if(S.autoPlay){S.autoTriggered=true;autoTimer=setTimeout(function(){autoTimer=null;go();},600);}
+}
+addTE('kdn',function(){keyShift(-1);});
+addTE('kup',function(){keyShift(1);});
 document.getElementById('autoplay').addEventListener('change',function(e){S.autoPlay=e.target.checked;});
 document.getElementById('bs').addEventListener('input',function(e){S.bpm=+e.target.value;document.getElementById('bv').textContent=S.bpm;});
 addTE('pb',go);
