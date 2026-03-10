@@ -98,12 +98,26 @@ function ensureAudio(){
   if(actx.state==='suspended')actx.resume();
   var buf=actx.createBuffer(1,1,22050),src=actx.createBufferSource();
   src.buffer=buf;src.connect(actx.destination);src.start(0);
-  // Play silent audio to unlock iOS silent mode
   silentAudio.play().catch(function(){});
 }
 
-document.addEventListener('touchend',function(){ensureAudio();},{once:true});
-document.addEventListener('click',function(){ensureAudio();},{once:true});
+// Re-wake audio on EVERY touch/click, not just the first one
+document.addEventListener('touchend',function(){ensureAudio();});
+document.addEventListener('click',function(){ensureAudio();});
+
+// Keep AudioContext alive: ping every 20s to prevent browser from suspending it
+setInterval(function(){
+  if(actx&&actx.state==='suspended')actx.resume();
+  if(silentAudio.paused)silentAudio.play().catch(function(){});
+},20000);
+
+// Also re-wake when user comes back to the tab/app
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden){
+    if(actx&&actx.state==='suspended')actx.resume();
+    if(silentAudio.paused)silentAudio.play().catch(function(){});
+  }
+});
 
 // ============ SYNTH PIANO ============
 function mf(m){return 440*Math.pow(2,(m-69)/12);}
